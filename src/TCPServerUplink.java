@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 class TCPServerUplink {
-	static int port = 15001;
+	static int port = 501;
 
 	public static void main(String argv[]) throws Exception {
 		if (argv.length != 1) {
@@ -23,7 +23,7 @@ class TCPServerUplink {
 
 		System.out.println("waiting for client......\n");
 		writer.print("command: java TCPServerUplink " + argv[0] + "\n");
-		writer.println("Server is listening to port" + port);
+		writer.println("Server is listening to port " + port);
 		writer.print("waiting for client......\n\n");
 
 		while (true) {

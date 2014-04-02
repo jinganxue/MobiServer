@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 class TCPServerFlow {
-	static int port = 15005;
+	static int port = 505;
 	static int size = 1024;
 
 	public static void main(String argv[]) throws Exception {
@@ -52,8 +52,7 @@ class TCPServerFlow {
 					String peer = serverSocket.getRemoteSocketAddress()
 							.toString();
 					System.out.println(local + " connected to " + peer);
-					System.out
-							.println("--------------------------split line-----------------------------");
+					System.out.println("--------------------------split line-----------------------------");
 					writer.print(local + " connected to " + peer + "\n");
 					writer.print("--------------------------split line-----------------------------\n");
 
