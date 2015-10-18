@@ -1,15 +1,16 @@
+package thu.mobinet.mobiserver.deploy;
 import java.io.*;
 import java.net.*;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-class TCPServerUplink {
-	static int port = 501;
+class TD {
+	static int port = 1602;
 
 	public static void main(String argv[]) throws Exception {
-		if (argv.length != 1) {
-			System.out.println("Usage: TCPServerUplink interval(s)");
+		if (argv.length != 2) {
+			System.out.println("Usage: TCPServerDownlink time(min) interval(s)");
 			System.exit(0);
 		}
 
@@ -19,10 +20,10 @@ class TCPServerUplink {
 		fileName = df.format(new Date());
 		System.out.println(fileName + " Server is listening to port " + port);
 
-		writer = new PrintStream(new FileOutputStream(fileName + " uplink.txt"));
+		writer = new PrintStream(new FileOutputStream(fileName + " downlink.txt"));
 
 		System.out.println("waiting for client......\n");
-		writer.print("command: java TCPServerUplink " + argv[0] + "\n");
+		writer.print("command: java TCPServerDownlink " + argv[0] + " " + argv[1] + "\n");
 		writer.println("Server is listening to port " + port);
 		writer.print("waiting for client......\n\n");
 
@@ -41,58 +42,54 @@ class TCPServerUplink {
 					writer.println();
 
 					String date = df.format(new Date());
-					System.out.println(date + " Uplink has established");
-					writer.print(date + " Uplink has established" + "\n");
+					System.out.println(date + " Downlink has established");
+					writer.print(date + " Downlink has established" + "\n");
 
 					String local = "Local "
 							+ serverSocket.getLocalAddress().getHostAddress()
 							+ " port " + serverSocket.getLocalPort();
-					String peer = serverSocket.getRemoteSocketAddress()
-							.toString();
+					String peer = serverSocket.getRemoteSocketAddress().toString();
 					System.out.println(local + " connected to " + peer);
-					System.out
-							.println("--------------------------split line-----------------------------");
+					System.out.println("--------------------------split line-----------------------------");
 					writer.print(local + " connected to " + peer + "\n");
 					writer.print("--------------------------split line-----------------------------\n");
 
-					mInterval = Integer.parseInt(argv[0]) * 1000;
-
+					measureTime = Integer.parseInt(argv[0]) * 60 * 1000;
+					mInterval = Integer.parseInt(argv[1]) * 1000;
 					numF = NumberFormat.getInstance();
 					numF.setMaximumFractionDigits(0);
 
 					mTotalLen = 0;
 					mLastTotalLen = 0;
 
-					System.out.println("Uplink testing......Server is receiving data from client.");
-					writer.print("Uplink testing......Server is receiving data from client.\n");
+					System.out.println("Downlink testing......Server is sending data to client.");
+					writer.print("Downlink testing......Server is sending data to client.\n");
 
 					int bufLen = 1 * 1024;
-					char buf[] = new char[bufLen];
+					int currLen = bufLen * 2;
+					String buf = "";
+					for (int i = 0; i < bufLen; i++)
+						buf += '2';
 
-					int currLen = 0;
-
-					BufferedReader inFromClient = new BufferedReader(
-							new InputStreamReader(serverSocket.getInputStream()));
+					DataOutputStream outToClient = new DataOutputStream(
+							serverSocket.getOutputStream());
 
 					mStartTime = System.currentTimeMillis();
+					mEndTime = mStartTime + measureTime;
 					mLastTime = mStartTime;
 					mNextTime = mStartTime + mInterval;
 
 					do {
-						currLen = inFromClient.read(buf);
-						// currLen = -1 means reaching the end of the stream
-						if (currLen == -1)
-							break;
-
+						outToClient.writeChars(buf);
 						packetTime = System.currentTimeMillis();
 
 						ReportPeriodicBW();
 
 						mTotalLen += currLen;
-					} while (true);
+					} while (packetTime < mEndTime);
 
-					System.out.println("TotalTime	Received	Throughput");
-					writer.print("TotalTime	Received	Throughput\n");
+					System.out.println("TotalTime	Transfer	Throughput");
+					writer.print("TotalTime	Transfer	Throughput\n");
 					mTotalTime = packetTime - mStartTime;
 					double throughput = (double) mTotalLen * 8
 							/ (mTotalTime / 1000) / 1000;
@@ -104,12 +101,11 @@ class TCPServerUplink {
 
 					serverSocket.close();
 					String str = df.format(new Date());
-					str += " Uplink has closed";
+					str += " Downlink has closed";
 					System.out.println(str);
 					writer.println(str);
 
-					System.out
-							.println("--------------------------split line-----------------------------");
+					System.out.println("--------------------------split line-----------------------------");
 					System.out.println("waiting for client......\n");
 					writer.print("--------------------------split line-----------------------------\n");
 					writer.print("waiting for client......\n\n");
@@ -118,8 +114,8 @@ class TCPServerUplink {
 					System.out.println(str + " Network has disconnected. (Exception)");
 					writer.print(str + " Network has disconnected. (Exception)\n");
 					ex.printStackTrace();
-					System.out
-							.println("--------------------------split line-----------------------------");
+
+					System.out.println("--------------------------split line-----------------------------");
 					System.out.println("waiting for client......\n");
 					writer.print("--------------------------split line-----------------------------\n");
 					writer.print("waiting for client......\n\n");
@@ -128,6 +124,7 @@ class TCPServerUplink {
 				}
 			}
 		}).start();
+
 	}
 
 	static void ReportPeriodicBW() throws IOException {
@@ -137,8 +134,7 @@ class TCPServerUplink {
 			long inStop = mNextTime - mStartTime;
 
 			// 1KB = 1024B; 1kbps = 1000bps
-			double throughput = (double) inBytes * 8 / (mInterval / 1000)
-					/ 1000;
+			double throughput = (double) inBytes * 8 / (mInterval / 1000) / 1000;
 			String rate = numF.format(throughput);
 			System.out.println(inStart / 1000 + "-" + inStop / 1000 + " sec "
 					+ inBytes / 1024 + " KB " + rate + " kbps");
@@ -157,6 +153,7 @@ class TCPServerUplink {
 
 	protected static long mStartTime;
 	protected static long mEndTime;
+	protected static long measureTime;
 	protected static long mInterval;
 
 	protected static long packetTime;
@@ -164,11 +161,11 @@ class TCPServerUplink {
 	protected static long mNextTime;
 	protected static long mTotalTime;
 
-	protected static long mTotalLen;
+	protected static long mTotalLen; 
 	protected static long mLastTotalLen;
 
 	protected static NumberFormat numF;
-	protected static SimpleDateFormat df;
-	protected static PrintStream writer;
-	protected static String fileName;
+	public static SimpleDateFormat df;
+	public static PrintStream writer;
+	public static String fileName;
 }

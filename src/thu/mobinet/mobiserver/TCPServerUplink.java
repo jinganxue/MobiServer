@@ -1,30 +1,29 @@
+package thu.mobinet.mobiserver;
 import java.io.*;
 import java.net.*;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-class TCPServerFlow {
-	static int port = 505;
-	static int size = 1024;
+class TCPServerUplink {
+	static int port = 501;
 
 	public static void main(String argv[]) throws Exception {
-		if (argv.length != 3) {
-			System.out.println("Usage: TCPServerFlow time(min) interval(s) size(KB)");
+		if (argv.length != 1) {
+			System.out.println("Usage: TCPServerUplink interval(s)");
 			System.exit(0);
 		}
-		
-		size = Integer.valueOf(argv[2]);
+
 		ServerSocket welcomeSocket = new ServerSocket(port);
 
 		df = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss.SSS");
 		fileName = df.format(new Date());
 		System.out.println(fileName + " Server is listening to port " + port);
 
-		writer = new PrintStream(new FileOutputStream(fileName + " flow.txt"));
+		writer = new PrintStream(new FileOutputStream(fileName + " uplink.txt"));
 
 		System.out.println("waiting for client......\n");
-		writer.print("command: java TCPServerFlow " + argv[0] + " " + argv[1] + " " + argv[2] + "\n");
+		writer.print("command: java TCPServerUplink " + argv[0] + "\n");
 		writer.println("Server is listening to port " + port);
 		writer.print("waiting for client......\n\n");
 
@@ -43,8 +42,8 @@ class TCPServerFlow {
 					writer.println();
 
 					String date = df.format(new Date());
-					System.out.println(date + " Downlink has established");
-					writer.print(date + " Downlink has established" + "\n");
+					System.out.println(date + " Uplink has established");
+					writer.print(date + " Uplink has established" + "\n");
 
 					String local = "Local "
 							+ serverSocket.getLocalAddress().getHostAddress()
@@ -52,51 +51,49 @@ class TCPServerFlow {
 					String peer = serverSocket.getRemoteSocketAddress()
 							.toString();
 					System.out.println(local + " connected to " + peer);
-					System.out.println("--------------------------split line-----------------------------");
+					System.out
+							.println("--------------------------split line-----------------------------");
 					writer.print(local + " connected to " + peer + "\n");
 					writer.print("--------------------------split line-----------------------------\n");
 
-					measureTime = Integer.parseInt(argv[0]) * 60 * 1000;
-					mInterval = Integer.parseInt(argv[1]) * 1000;
+					mInterval = Integer.parseInt(argv[0]) * 1000;
+
 					numF = NumberFormat.getInstance();
 					numF.setMaximumFractionDigits(0);
 
 					mTotalLen = 0;
 					mLastTotalLen = 0;
 
-					System.out.println("Flow testing......Server is sending data to client.");
-					writer.print("Flow testing......Server is sending data to client.\n");
+					System.out.println("Uplink testing......Server is receiving data from client.");
+					writer.print("Uplink testing......Server is receiving data from client.\n");
 
 					int bufLen = 1 * 1024;
-					int currLen = bufLen * 2;
-					String buf = "";
-					for (int i = 0; i < bufLen; i++)
-						buf += '1';
+					char buf[] = new char[bufLen];
 
-					DataOutputStream outToClient = new DataOutputStream(
-							serverSocket.getOutputStream());
+					int currLen = 0;
+
+					BufferedReader inFromClient = new BufferedReader(
+							new InputStreamReader(serverSocket.getInputStream()));
 
 					mStartTime = System.currentTimeMillis();
-					mEndTime = mStartTime + measureTime;
 					mLastTime = mStartTime;
 					mNextTime = mStartTime + mInterval;
 
 					do {
-						outToClient.writeChars(buf);
+						currLen = inFromClient.read(buf);
+						// currLen = -1 means reaching the end of the stream
+						if (currLen == -1)
+							break;
+
 						packetTime = System.currentTimeMillis();
 
 						ReportPeriodicBW();
 
 						mTotalLen += currLen;
-						
-						if (mTotalLen > size * 1024) {
-							serverSocket.close();
-							break;
-						}
-					} while (packetTime < mEndTime);
+					} while (true);
 
-					System.out.println("TotalTime	Transfer	Throughput");
-					writer.print("TotalTime	Transfer	Throughput\n");
+					System.out.println("TotalTime	Received	Throughput");
+					writer.print("TotalTime	Received	Throughput\n");
 					mTotalTime = packetTime - mStartTime;
 					double throughput = (double) mTotalLen * 8
 							/ (mTotalTime / 1000) / 1000;
@@ -108,11 +105,12 @@ class TCPServerFlow {
 
 					serverSocket.close();
 					String str = df.format(new Date());
-					str += " Downlink has closed";
+					str += " Uplink has closed";
 					System.out.println(str);
 					writer.println(str);
 
-					System.out.println("--------------------------split line-----------------------------");
+					System.out
+							.println("--------------------------split line-----------------------------");
 					System.out.println("waiting for client......\n");
 					writer.print("--------------------------split line-----------------------------\n");
 					writer.print("waiting for client......\n\n");
@@ -121,8 +119,8 @@ class TCPServerFlow {
 					System.out.println(str + " Network has disconnected. (Exception)");
 					writer.print(str + " Network has disconnected. (Exception)\n");
 					ex.printStackTrace();
-
-					System.out.println("--------------------------split line-----------------------------");
+					System.out
+							.println("--------------------------split line-----------------------------");
 					System.out.println("waiting for client......\n");
 					writer.print("--------------------------split line-----------------------------\n");
 					writer.print("waiting for client......\n\n");
@@ -131,7 +129,6 @@ class TCPServerFlow {
 				}
 			}
 		}).start();
-
 	}
 
 	static void ReportPeriodicBW() throws IOException {
@@ -161,7 +158,6 @@ class TCPServerFlow {
 
 	protected static long mStartTime;
 	protected static long mEndTime;
-	protected static long measureTime;
 	protected static long mInterval;
 
 	protected static long packetTime;
@@ -169,11 +165,11 @@ class TCPServerFlow {
 	protected static long mNextTime;
 	protected static long mTotalTime;
 
-	protected static long mTotalLen; 
+	protected static long mTotalLen;
 	protected static long mLastTotalLen;
 
 	protected static NumberFormat numF;
-	public static SimpleDateFormat df;
-	public static PrintStream writer;
-	public static String fileName;
+	protected static SimpleDateFormat df;
+	protected static PrintStream writer;
+	protected static String fileName;
 }

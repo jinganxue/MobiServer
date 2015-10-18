@@ -1,3 +1,4 @@
+package thu.mobinet.mobiserver.deploy;
 /**
  * @author XQY
  */
@@ -6,8 +7,9 @@ import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-class UDPServerUplink {
-	static int port = 503;
+class UU {
+	static int port = 1603;
+	
 	static PrintStream writer;
 	static SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss.SSS");
 	

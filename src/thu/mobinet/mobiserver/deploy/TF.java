@@ -1,28 +1,31 @@
+package thu.mobinet.mobiserver.deploy;
 import java.io.*;
 import java.net.*;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-class TCPServerDownlink {
-	static int port = 502;
+class TF {
+	static int port = 505;
+	static int size = 1024;
 
 	public static void main(String argv[]) throws Exception {
-		if (argv.length != 2) {
-			System.out.println("Usage: TCPServerDownlink time(min) interval(s)");
+		if (argv.length != 3) {
+			System.out.println("Usage: TCPServerFlow time(min) interval(s) size(KB)");
 			System.exit(0);
 		}
-
+		
+		size = Integer.valueOf(argv[2]);
 		ServerSocket welcomeSocket = new ServerSocket(port);
 
 		df = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss.SSS");
 		fileName = df.format(new Date());
 		System.out.println(fileName + " Server is listening to port " + port);
 
-		writer = new PrintStream(new FileOutputStream(fileName + " downlink.txt"));
+		writer = new PrintStream(new FileOutputStream(fileName + " flow.txt"));
 
 		System.out.println("waiting for client......\n");
-		writer.print("command: java TCPServerDownlink " + argv[0] + " " + argv[1] + "\n");
+		writer.print("command: java TCPServerFlow " + argv[0] + " " + argv[1] + " " + argv[2] + "\n");
 		writer.println("Server is listening to port " + port);
 		writer.print("waiting for client......\n\n");
 
@@ -47,7 +50,8 @@ class TCPServerDownlink {
 					String local = "Local "
 							+ serverSocket.getLocalAddress().getHostAddress()
 							+ " port " + serverSocket.getLocalPort();
-					String peer = serverSocket.getRemoteSocketAddress().toString();
+					String peer = serverSocket.getRemoteSocketAddress()
+							.toString();
 					System.out.println(local + " connected to " + peer);
 					System.out.println("--------------------------split line-----------------------------");
 					writer.print(local + " connected to " + peer + "\n");
@@ -61,14 +65,14 @@ class TCPServerDownlink {
 					mTotalLen = 0;
 					mLastTotalLen = 0;
 
-					System.out.println("Downlink testing......Server is sending data to client.");
-					writer.print("Downlink testing......Server is sending data to client.\n");
+					System.out.println("Flow testing......Server is sending data to client.");
+					writer.print("Flow testing......Server is sending data to client.\n");
 
 					int bufLen = 1 * 1024;
 					int currLen = bufLen * 2;
 					String buf = "";
 					for (int i = 0; i < bufLen; i++)
-						buf += '2';
+						buf += '1';
 
 					DataOutputStream outToClient = new DataOutputStream(
 							serverSocket.getOutputStream());
@@ -85,6 +89,11 @@ class TCPServerDownlink {
 						ReportPeriodicBW();
 
 						mTotalLen += currLen;
+						
+						if (mTotalLen > size * 1024) {
+							serverSocket.close();
+							break;
+						}
 					} while (packetTime < mEndTime);
 
 					System.out.println("TotalTime	Transfer	Throughput");
@@ -133,7 +142,8 @@ class TCPServerDownlink {
 			long inStop = mNextTime - mStartTime;
 
 			// 1KB = 1024B; 1kbps = 1000bps
-			double throughput = (double) inBytes * 8 / (mInterval / 1000) / 1000;
+			double throughput = (double) inBytes * 8 / (mInterval / 1000)
+					/ 1000;
 			String rate = numF.format(throughput);
 			System.out.println(inStart / 1000 + "-" + inStop / 1000 + " sec "
 					+ inBytes / 1024 + " KB " + rate + " kbps");
